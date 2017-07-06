@@ -1,10 +1,11 @@
-# Copyright 2013 Pervasive Displays, Inc.
+# Original Copyright 2013 Pervasive Displays, Inc.
+# Modified Copyright 2017 Benjamin Bertrand
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at:
 #
-#   http:#www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
@@ -13,10 +14,10 @@
 # governing permissions and limitations under the License.
 
 
-from PIL import Image
-from PIL import ImageOps
-import re
 import os
+import re
+import aiofiles
+from PIL import Image, ImageOps
 
 
 class EPDError(Exception):
@@ -28,21 +29,19 @@ class EPDError(Exception):
 
 
 class EPD(object):
-
     """EPD E-Ink interface
 
-to use:
-  from EPD import EPD
+    To use:
+    from aioepd import EPD
 
-  epd = EPD([path='/path/to/epd'], [auto=boolean])
+    epd = await EPD.create([path='/path/to/epd'], [auto=boolean])
 
-  image = Image.new('1', epd.size, 0)
-  # draw on image
-  epd.clear()         # clear the panel
-  epd.display(image)  # tranfer image data
-  epd.update()        # refresh the panel image - not deeed if auto=true
-"""
-
+    image = Image.new('1', epd.size, 0)
+    # draw on image
+    await epd.clear()         # clear the panel
+    await epd.display(image)  # tranfer image data
+    await epd.update()        # refresh the panel image - not needed if auto=true
+    """
 
     PANEL_RE = re.compile('^([A-Za-z]+)\s+(\d+\.\d+)\s+(\d+)x(\d+)\s+COG\s+(\d+)\s*$', flags=0)
 
@@ -53,31 +52,31 @@ to use:
         self._panel = 'EPD 2.0'
         self._cog = 0
         self._auto = False
-
         if len(args) > 0:
             self._epd_path = args[0]
         elif 'epd' in kwargs:
             self._epd_path = kwargs['epd']
-
         if ('auto' in kwargs) and kwargs['auto']:
             self._auto = True
 
-        with open(os.path.join(self._epd_path, 'version')) as f:
-            self._version = f.readline().rstrip('\n')
-
-        with open(os.path.join(self._epd_path, 'panel')) as f:
-            line = f.readline().rstrip('\n')
-            m = self.PANEL_RE.match(line)
-            if None == m:
+    @classmethod
+    async def create(cls, *args, **kwargs):
+        self = EPD(*args, **kwargs)
+        async with aiofiles.open(os.path.join(self._epd_path, 'version')) as f:
+            version = await f.readline()
+            self._version = version.rstrip('\n')
+        async with aiofiles.open(os.path.join(self._epd_path, 'panel')) as f:
+            line = await f.readline()
+            m = self.PANEL_RE.match(line.rstrip('\n'))
+            if m is None:
                 raise EPDError('invalid panel string')
             self._panel = m.group(1) + ' ' + m.group(2)
             self._width = int(m.group(3))
             self._height = int(m.group(4))
             self._cog = int(m.group(5))
-
         if self._width < 1 or self._height < 1:
             raise EPDError('invalid panel geometry')
-
+        return self
 
     @property
     def size(self):
@@ -114,37 +113,30 @@ to use:
         else:
             self._auto = False
 
-
-    def display(self, image):
-
+    async def display(self, image):
         # attempt grayscale conversion, ath then to single bit
         # better to do this before callin this if the image is to
         # be dispayed several times
         if image.mode != "1":
             image = ImageOps.grayscale(image).convert("1", dither=Image.FLOYDSTEINBERG)
-
         if image.mode != "1":
             raise EPDError('only single bit images are supported')
-
         if image.size != self.size:
             raise EPDError('image size mismatch')
-
-        with open(os.path.join(self._epd_path, 'LE', 'display_inverse'), 'r+b') as f:
-            f.write(image.tobytes())
-
+        async with aiofiles.open(os.path.join(self._epd_path, 'LE', 'display_inverse'), 'r+b') as f:
+            await f.write(image.tobytes())
         if self.auto:
-            self.update()
+            await self.update()
 
+    async def update(self):
+        await self._command(b'U')
 
-    def update(self):
-        self._command('U')
+    async def partial_update(self):
+        await self._command(b'P')
 
-    def partial_update(self):
-        self._command('P')
+    async def clear(self):
+        await self._command(b'C')
 
-    def clear(self):
-        self._command('C')
-
-    def _command(self, c):
-        with open(os.path.join(self._epd_path, 'command'), 'wb') as f:
-            f.write(c)
+    async def _command(self, c):
+        async with aiofiles.open(os.path.join(self._epd_path, 'command'), 'wb') as f:
+            await f.write(c)
