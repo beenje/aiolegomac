@@ -3,10 +3,15 @@ import pathlib
 import yaml
 from aiohttp import web
 from .api import setup_routes
+from .aioepd import EPD
 from .middlewares import setup_middlewares
 
 
 PROJECT_ROOT = pathlib.Path(__file__).parent
+
+
+async def start_background_tasks(app):
+    app['epd'] = await EPD.create(auto=True)
 
 
 def init_app():
@@ -17,6 +22,7 @@ def init_app():
     app['config'] = config
     setup_routes(app)
     setup_middlewares(app)
+    app.on_startup.append(start_background_tasks)
     return app
 
 

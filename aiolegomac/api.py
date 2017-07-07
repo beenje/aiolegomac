@@ -2,7 +2,7 @@ import datetime
 import logging
 import jwt
 from functools import wraps
-from aiohttp import web
+from aiohttp import helpers, web
 
 logger = logging.getLogger('aiohttp.server')
 
@@ -46,6 +46,7 @@ async def post_message(request):
     except KeyError:
         return web.HTTPBadRequest()
     logger.debug(f'Message received from {request.user}: {message}')
+    helpers.ensure_future(request.app['epd'].display_message(message, request.user))
     return web.json_response({'message': message}, status=201)
 
 

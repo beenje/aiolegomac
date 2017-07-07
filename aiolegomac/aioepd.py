@@ -16,8 +16,13 @@
 
 import os
 import re
+import textwrap
+import time
 import aiofiles
-from PIL import Image, ImageOps
+from PIL import Image, ImageDraw, ImageFont, ImageOps
+
+WHITE = 1
+BLACK = 0
 
 
 class EPDError(Exception):
@@ -58,6 +63,8 @@ class EPD(object):
             self._epd_path = kwargs['epd']
         if ('auto' in kwargs) and kwargs['auto']:
             self._auto = True
+        self._user_font = ImageFont.truetype('DejaVuSansMono-Bold.ttf', 20)
+        self._msg_font = ImageFont.truetype('LiberationMono-Bold.ttf', 18)
 
     @classmethod
     async def create(cls, *args, **kwargs):
@@ -76,6 +83,8 @@ class EPD(object):
             self._cog = int(m.group(5))
         if self._width < 1 or self._height < 1:
             raise EPDError('invalid panel geometry')
+        self._msg_image = Image.new('1', self.size, WHITE)
+        self._msg_draw = ImageDraw.Draw(self._msg_image)
         return self
 
     @property
@@ -127,6 +136,24 @@ class EPD(object):
             await f.write(image.tobytes())
         if self.auto:
             await self.update()
+
+    async def display_message(self, message, username):
+        # clear the display buffer
+        self._msg_draw.rectangle((0, 0, self.width, self.height), fill=WHITE, outline=WHITE)
+        # Get the number of characters per line to wrap the message
+        (msg_width, msg_height) = self._msg_font.getsize(message)
+        width_one_char = msg_width / len(message)
+        # Keep a small margin on each side
+        char_per_line = (self.width - 8) // width_one_char
+        multi_line = textwrap.fill(message, char_per_line)
+        self._msg_draw.text((4, 4), multi_line, fill=BLACK, font=self._msg_font)
+        # Right-align the username and time of the message on the last line
+        line = f'{username} at {time.strftime("%H:%M")}'
+        (line_width, line_height) = self._user_font.getsize(line)
+        x = self.width - line_width - 5
+        y = self.height - line_height - 4
+        self._msg_draw.text((x, y), line, fill=BLACK, font=self._user_font)
+        await self.display(self._msg_image)
 
     async def update(self):
         await self._command(b'U')
