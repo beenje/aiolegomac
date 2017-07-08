@@ -45,6 +45,8 @@ async def post_message(request):
         message = data['message']
     except KeyError:
         return web.HTTPBadRequest()
+    # cancel the display clock
+    request.app['clock'].cancel()
     logger.debug(f'Message received from {request.user}: {message}')
     helpers.ensure_future(request.app['epd'].display_message(message, request.user))
     return web.json_response({'message': message}, status=201)
