@@ -1,7 +1,9 @@
 import asyncio
 import datetime
+import functools
 import logging
 import pathlib
+import apigpio
 import yaml
 from aiohttp import web
 from .api import setup_routes
@@ -9,8 +11,17 @@ from .aioepd import Clock, EPD
 from .middlewares import setup_middlewares
 
 
+BUTTON_GPIO = 22
 PROJECT_ROOT = pathlib.Path(__file__).parent
 logger = logging.getLogger('aiohttp.server')
+
+
+def on_input(app, gpio, level, tick):
+    """Callback called when pressing the button on the e-paper display"""
+    logger.info('on_input {} {} {}'.format(gpio, level, tick))
+    if app['clock'].done():
+        logger.info('restart clock')
+        app['clock'] = app.loop.create_task(display_clock(app))
 
 
 async def display_clock(app):
@@ -32,6 +43,14 @@ async def display_clock(app):
 
 
 async def start_background_tasks(app):
+    app['pi'] = apigpio.Pi(app.loop)
+    address = (app['config']['pigpiod_host'], app['config']['pigpiod_port'])
+    await app['pi'].connect(address)
+    await app['pi'].set_mode(BUTTON_GPIO, apigpio.INPUT)
+    app['cb'] = await app['pi'].add_callback(
+            BUTTON_GPIO,
+            edge=apigpio.RISING_EDGE,
+            func=functools.partial(on_input, app))
     app['epd'] = await EPD.create(auto=True)
     app['clock'] = app.loop.create_task(display_clock(app))
 
@@ -39,6 +58,7 @@ async def start_background_tasks(app):
 async def cleanup_background_tasks(app):
     app['clock'].cancel()
     await app['clock']
+    await app['pi'].stop()
 
 
 def init_app():

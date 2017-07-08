@@ -1,4 +1,6 @@
 ---
+pigpiod_host: 'localhost'
+pigpiod_port: 8888
 host: 'localhost'
 port: 8080
 username: 'username'
