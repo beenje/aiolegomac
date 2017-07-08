@@ -33,6 +33,56 @@ class EPDError(Exception):
         return repr(self.value)
 
 
+class Clock:
+
+    FONT_FILE = 'LiberationMono-Bold.ttf'
+    CLOCK_FONT_SIZE = 100
+    DATE_FONT_SIZE = 42
+    WEEKDAY_FONT_SIZE = 42
+    X_OFFSET = 5
+    Y_OFFSET = 3
+    COLON_SIZE = 5
+    COLON_GAP = 10
+    DATE_X = 10
+    DATE_Y = 90
+    WEEKDAY_X = 10
+    WEEKDAY_Y = 130
+
+    def __init__(self, epd):
+        self.epd = epd
+        # initially set all white background
+        self.image = Image.new('1', self.epd.size, WHITE)
+        # prepare for drawing
+        self.draw = ImageDraw.Draw(self.image)
+        self.width, self.height = self.image.size
+        self.clock_font = ImageFont.truetype(Clock.FONT_FILE, Clock.CLOCK_FONT_SIZE)
+        self.date_font = ImageFont.truetype(Clock.FONT_FILE, Clock.DATE_FONT_SIZE)
+        self.weekday_font = ImageFont.truetype(Clock.FONT_FILE, Clock.WEEKDAY_FONT_SIZE)
+        self.colon_x1 = self.width / 2 - Clock.COLON_SIZE
+        self.colon_x2 = self.width / 2 + Clock.COLON_SIZE
+        self.colon_y1 = Clock.CLOCK_FONT_SIZE / 2 + Clock.Y_OFFSET - Clock.COLON_SIZE
+        self.colon_y2 = Clock.CLOCK_FONT_SIZE / 2 + Clock.Y_OFFSET + Clock.COLON_SIZE
+        # clear the display buffer
+        self.draw.rectangle((0, 0, self.width, self.height), fill=WHITE, outline=WHITE)
+        self.previous_day = None
+
+    async def display(self, now):
+        if now.day != self.previous_day:
+            self.draw.rectangle((1, 1, self.width - 1, self.height - 1), fill=WHITE, outline=BLACK)
+            self.draw.rectangle((2, 2, self.width - 2, self.height - 2), fill=WHITE, outline=BLACK)
+            self.draw.text((Clock.DATE_X, Clock.DATE_Y), now.strftime('%Y-%m-%d'), fill=BLACK, font=self.date_font)
+            self.draw.text((Clock.WEEKDAY_X, Clock.WEEKDAY_Y), now.strftime('%A').upper(), fill=BLACK, font=self.weekday_font)
+            self.previous_day = now.day
+        else:
+            self.draw.rectangle((Clock.X_OFFSET, Clock.Y_OFFSET, self.width - Clock.X_OFFSET, Clock.DATE_Y - 1), fill=WHITE, outline=WHITE)
+        self.draw.text((Clock.X_OFFSET, Clock.Y_OFFSET), now.strftime('%H'), fill=BLACK, font=self.clock_font)
+        self.draw.rectangle((self.colon_x1, self.colon_y1 - Clock.COLON_GAP, self.colon_x2, self.colon_y2 - Clock.COLON_GAP), fill=BLACK, outline=BLACK)
+        self.draw.rectangle((self.colon_x1, self.colon_y1 + Clock.COLON_GAP, self.colon_x2, self.colon_y2 + Clock.COLON_GAP), fill=BLACK, outline=BLACK)
+        self.draw.text((Clock.X_OFFSET + self.width / 2, Clock.Y_OFFSET), now.strftime('%M'), fill=BLACK, font=self.clock_font)
+        # display image on the panel
+        await self.epd.display(self.image)
+
+
 class EPD(object):
     """EPD E-Ink interface
 
