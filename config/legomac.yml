@@ -9,3 +9,4 @@ jwt_secret: 'secret'
 jwt_algorithm: 'HS256'
 # 3600 * 24 * 7 (1 week)
 jwt_exp_delta_seconds: 604800
+timezone: 'Europe/Stockholm'

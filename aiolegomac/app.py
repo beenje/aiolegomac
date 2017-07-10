@@ -4,6 +4,7 @@ import functools
 import logging
 import pathlib
 import apigpio
+import pytz
 import yaml
 from aiohttp import web
 from .api import setup_routes
@@ -28,10 +29,11 @@ async def display_clock(app):
     """Background task to display clock every second"""
     clock = Clock(app['epd'])
     first_start = True
+    timezone = pytz.timezone(app['config']['timezone'])
     try:
         while True:
             while True:
-                now = datetime.datetime.today()
+                now = datetime.datetime.now(timezone)
                 if now.second == 0 or first_start:
                     first_start = False
                     break
