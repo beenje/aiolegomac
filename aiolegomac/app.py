@@ -29,11 +29,10 @@ async def display_clock(app):
     """Background task to display clock every second"""
     clock = Clock(app['epd'])
     first_start = True
-    timezone = pytz.timezone(app['config']['timezone'])
     try:
         while True:
             while True:
-                now = datetime.datetime.now(timezone)
+                now = datetime.datetime.now(app['timezone'])
                 if now.second == 0 or first_start:
                     first_start = False
                     break
@@ -69,6 +68,7 @@ def init_app():
         config = yaml.load(f)
     app = web.Application()
     app['config'] = config
+    app['timezone'] = pytz.timezone(config['timezone'])
     setup_routes(app)
     setup_middlewares(app)
     app.on_startup.append(start_background_tasks)

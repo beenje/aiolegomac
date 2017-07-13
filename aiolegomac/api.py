@@ -48,7 +48,8 @@ async def post_message(request):
     # cancel the display clock
     request.app['clock'].cancel()
     logger.debug(f'Message received from {request.user}: {message}')
-    helpers.ensure_future(request.app['epd'].display_message(message, request.user))
+    now = datetime.datetime.now(request.app['timezone'])
+    helpers.ensure_future(request.app['epd'].display_message(message, request.user, now))
     return web.json_response({'message': message}, status=201)
 
 

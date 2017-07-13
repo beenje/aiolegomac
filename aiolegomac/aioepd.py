@@ -17,7 +17,6 @@
 import os
 import re
 import textwrap
-import time
 import aiofiles
 from PIL import Image, ImageDraw, ImageFont, ImageOps
 
@@ -187,7 +186,7 @@ class EPD(object):
         if self.auto:
             await self.update()
 
-    async def display_message(self, message, username):
+    async def display_message(self, message, username, now):
         # clear the display buffer
         self._msg_draw.rectangle((0, 0, self.width, self.height), fill=WHITE, outline=WHITE)
         # Get the number of characters per line to wrap the message
@@ -198,7 +197,7 @@ class EPD(object):
         multi_line = textwrap.fill(message, char_per_line)
         self._msg_draw.text((4, 4), multi_line, fill=BLACK, font=self._msg_font)
         # Right-align the username and time of the message on the last line
-        line = f'{username} at {time.strftime("%H:%M")}'
+        line = f'{username} at {now.strftime("%H:%M")}'
         (line_width, line_height) = self._user_font.getsize(line)
         x = self.width - line_width - 5
         y = self.height - line_height - 4
