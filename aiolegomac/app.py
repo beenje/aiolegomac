@@ -26,7 +26,7 @@ def on_input(app, gpio, level, tick):
 
 
 async def display_clock(app):
-    """Background task to display clock every second"""
+    """Background task to display clock every minute"""
     clock = Clock(app['epd'])
     first_start = True
     try:
