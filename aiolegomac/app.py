@@ -78,6 +78,6 @@ def init_app():
 
 def run():
     """Run the aiohttp server"""
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=logging.INFO)
     app = init_app()
     web.run_app(app, host=app['config']['host'], port=app['config']['port'])
