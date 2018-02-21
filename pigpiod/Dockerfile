@@ -8,7 +8,7 @@ RUN apt-get update \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
 
-RUN curl -o /tmp/pigpio.tar abyz.co.uk/rpi/pigpio/pigpio.tar \
+RUN curl -o /tmp/pigpio.tar abyz.me.uk/rpi/pigpio/pigpio.tar \
   && tar -xf /tmp/pigpio.tar -C /tmp \
   && make -C /tmp/PIGPIO \
   && make -C /tmp/PIGPIO install \
