@@ -1,5 +1,5 @@
 aiofiles==0.3.1
-aiohttp==2.2.3
+aiohttp==3.7.4
 apigpio==0.0.2
 async-timeout==1.2.1
 chardet==3.0.4
